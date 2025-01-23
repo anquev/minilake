@@ -1,5 +1,6 @@
 import duckdb
 import pandas as pd
+import polars as pl
 from pathlib import Path
 from typing import Union, Optional, List
 
