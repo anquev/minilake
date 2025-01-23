@@ -84,5 +84,65 @@ class DataIngestion:
             self.conn.execute(query)
 
 
+    def _ingest_json(
+        self,
+        file_path: Path,
+        table_name: str,
+        schema: Optional[dict]
+        ) -> None:
+
+        schema_sql = self._create_schema(schema) if schema else ""
+
+        if schema_sql:
+            self.conn.execute("CREATE TABLE {table_name} {schema_sql}")
+            self.conn.execute(f"""
+                INSERT INTO {table_name}
+                SELECT * FROM read_json('{file_path}')
+            """)
+        else:
+            query= f"""
+                CREATE TABLE {table_name} AS
+                SELECT * FROM read_json('{file_path}')
+            """
+            self.conn.execute(query)
+
+    def _ingest_excel(
+        self,
+        file_path: Path,
+        table_name: str,
+        schema: Optional[dict],
+        batch_size: Optional[int] = None
+        ) -> None:
+
+        df = pd.read_excel(file_path)
+        self._ingest_dataframe(df, table_name, schema, batch_size)
+
+    def _ingest_dataframe(
+        self,
+        df: Union[pd.DataFrame, pl.DataFrame],
+        table_name: str,
+        schema: Optional[dict],
+        batch_size: Optional[int] = len(df)
+        ) -> None:
+
+        if schema:
+            schema_sql = self._create_schema(schema)
+            self.conn.execute(f"CREATE TABLE {table_name} {schema_sql}")
+
+            for i in range(0, len(df), batch_size):
+                batch = df.iloc[i: i + batch_size]
+                self.conn.execute("INSERT INTO {table_name} SELECT * FROM batch",
+                                  {"batch": batch}
+                                  )
             
+        else:
+            self.conn.execute(
+                f"CREATE TABLE {table_name} AS SELECT * FROM df",
+                {"df": df}
+            )
+
+    @staticmethod
+    def _create_schema_sql(schema: dict) -> str:
+        columns = [f"{col} {dtype}" for col, dtype in schema.items()]
+        return f"({', '.join(columns)})"
 
