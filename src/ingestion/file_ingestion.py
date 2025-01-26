@@ -62,6 +62,12 @@ class DataIngestion:
         """
         self.conn.execute(query)
 
+    # Better use PyIceberg ?
+    # def _ingest_iceberg(self, file_path: Path, table_name: str) -> None:
+    #     query = """
+    #     CREATE TABLE {table_name} AS
+    #     SELECT * FROM iceberg_scan('{file_path}')"""
+
     def _ingest_csv(
         self,
         file_path: Path,
@@ -83,7 +89,6 @@ class DataIngestion:
                 SELECT * FROM read_csv_auto('{file_path}')
             """
             self.conn.execute(query)
-
 
     def _ingest_json(
         self,
@@ -143,7 +148,20 @@ class DataIngestion:
             )
 
     @staticmethod
-    def _create_schema_sql(schema: dict) -> str:
+    def _create_schema(schema: dict) -> str:
         columns = [f"{col} {dtype}" for col, dtype in schema.items()]
         return f"({', '.join(columns)})"
 
+    def query(self, sql: str, output_format: Union[pd.DataFrame, pl.DataFrame] = pd.DataFrame) -> Union[pd.DataFrame, pl.DataFrame]:
+        if output_format == pd.DataFrame:
+            return self.conn.execute(sql).df()
+        elif output_format == pl.DataFrame:
+            return self.conn.execute(sql).pl()
+        else:
+            raise ValueError("Output format not supported {output_format}.")
+            
+    def get_table_info(self, table_name: str) -> pd.DataFrame:
+        return self.conn.execute(f"DESCRIBE {table_name}").df()
+
+    def close(self):
+        self.conn.close()
