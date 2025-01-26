@@ -158,7 +158,7 @@ class DataIngestion:
         elif output_format == pl.DataFrame:
             return self.conn.execute(sql).pl()
         else:
-            raise ValueError("Output format not supported {output_format}.")
+            raise ValueError(f"Output format not supported {output_format}.")
             
     def get_table_info(self, table_name: str) -> pd.DataFrame:
         return self.conn.execute(f"DESCRIBE {table_name}").df()
