@@ -11,11 +11,8 @@ class DataIngestion:
 
     def _init_extensions(self):
         self.conn.execute("INSTALL httpfs; LOAD httpfs;")
-
         self.conn.execute("INSTALL parquet; LOAD parquet;")
-
         self.conn.execute("INSTALL json; LOAD json;")
-
 
     def ingest_file(
             self,
@@ -24,7 +21,6 @@ class DataIngestion:
             schema: Optional[dict] = None,
             batch_size: Optional[int] = 100000
     ) -> None:
-        
         file_path = Path(file_path)
 
         if not file_path.exists():
@@ -35,83 +31,51 @@ class DataIngestion:
         try:
             if extension == '.parquet':
                 self._ingest_parquet(file_path, table_name)
-
             elif extension == '.json':
                 self._ingest_json(file_path, table_name, schema)
-
             elif extension in ['.csv', '.txt']:
-                self._ingest_csv(file_path, table_name, schema, batch_size)
-
+                self._ingest_csv(file_path, table_name, schema)
             elif extension in ['.xls', '.xlsx']:
                 self._ingest_excel(file_path, table_name, schema, batch_size)
-
-            ## Add support for sas tables
-            # elif extension in 'sas7dbat':
-            #   self._ingest_sas(file_path, table_name, schema, batch_size)
-
             else:
                 raise ValueError(f"Unsupported file format {extension}, please provide a valid file extension.")
-            
         except Exception as e:
             raise e
-        
+
     def _ingest_parquet(self, file_path: Path, table_name: str) -> None:
-        query = """
-        CREATE TABLE IDENTIFIER(:table_name) AS
-        SELECT * FROM read_parquet(:file_path)
+        query = f"""
+        CREATE TABLE "{table_name}" AS
+        SELECT * FROM read_parquet(?)
         """
-        self.conn.execute(query, {
-            'table_name': table_name,
-            'file_path': str(file_path)
-        })
+        self.conn.execute(query, [str(file_path)])
 
-    def _ingest_csv(self, file_path: Path, table_name: str, schema: Optional[dict]):
-        schema_sql = self._create_schema(schema) if schema else ""
-        
-        if schema_sql:
+    def _ingest_csv(self, file_path: Path, table_name: str, schema: Optional[dict]) -> None:
+        if schema:
+            schema_sql = self._create_schema(schema)
+            self.conn.execute(f'CREATE TABLE "{table_name}" {schema_sql}')
             self.conn.execute(f"""
-                CREATE TABLE IDENTIFIER(:table_name) {schema_sql}
-            """, {'table_name': table_name})
-            
-            self.conn.execute("""
-                INSERT INTO IDENTIFIER(:table_name)
-                SELECT * FROM read_csv_auto(:file_path)
-            """, {
-                'table_name': table_name,
-                'file_path': str(file_path)
-            })
+                INSERT INTO "{table_name}"
+                SELECT * FROM read_csv_auto(?)
+            """, [str(file_path)])
         else:
-            self.conn.execute("""
-                CREATE TABLE IDENTIFIER(:table_name) AS
-                SELECT * FROM read_csv_auto(:file_path)
-            """, {
-                'table_name': table_name,
-                'file_path': str(file_path)
-            })
-
-    def _ingest_json(self, file_path: Path, table_name: str, schema: Optional[dict]):
-        schema_sql = self._create_schema(schema) if schema else ""
-
-        if schema_sql:
             self.conn.execute(f"""
-                CREATE TABLE IDENTIFIER(:table_name) {schema_sql}
-            """, {'table_name': table_name})
-            
-            self.conn.execute("""
-                INSERT INTO IDENTIFIER(:table_name)
-                SELECT * FROM read_json(:file_path)
-            """, {
-                'table_name': table_name,
-                'file_path': str(file_path)
-            })
+                CREATE TABLE "{table_name}" AS
+                SELECT * FROM read_csv_auto(?)
+            """, [str(file_path)])
+
+    def _ingest_json(self, file_path: Path, table_name: str, schema: Optional[dict]) -> None:
+        if schema:
+            schema_sql = self._create_schema(schema)
+            self.conn.execute(f'CREATE TABLE "{table_name}" {schema_sql}')
+            self.conn.execute(f"""
+                INSERT INTO "{table_name}"
+                SELECT * FROM read_json(?)
+            """, [str(file_path)])
         else:
-            self.conn.execute("""
-                CREATE TABLE IDENTIFIER(:table_name) AS
-                SELECT * FROM read_json(:file_path)
-            """, {
-                'table_name': table_name,
-                'file_path': str(file_path)
-            })
+            self.conn.execute(f"""
+                CREATE TABLE "{table_name}" AS
+                SELECT * FROM read_json(?)
+            """, [str(file_path)])
 
     def _ingest_excel(
         self,
@@ -119,8 +83,7 @@ class DataIngestion:
         table_name: str,
         schema: Optional[dict],
         batch_size: Optional[int] = None
-        ) -> None:
-
+    ) -> None:
         df = pd.read_excel(file_path)
         self._ingest_dataframe(df, table_name, schema, batch_size)
 
@@ -129,13 +92,11 @@ class DataIngestion:
         df: Union[pd.DataFrame, pl.DataFrame],
         table_name: str,
         schema: Optional[dict],
-        batch_size: Optional[int]
+        batch_size: Optional[int] = None
     ) -> None:
         if schema:
             schema_sql = self._create_schema(schema)
-            self.conn.execute(f"""
-                CREATE TABLE IDENTIFIER(:table_name) {schema_sql}
-            """, {'table_name': table_name})
+            self.conn.execute(f'CREATE TABLE "{table_name}" {schema_sql}')
 
             total_rows = len(df)
             batch_size = batch_size or total_rows
@@ -147,17 +108,11 @@ class DataIngestion:
                     batch = df.slice(i, batch_size)
                 
                 self.conn.register('current_batch', batch)
-                self.conn.execute("""
-                    INSERT INTO IDENTIFIER(:table_name)
-                    SELECT * FROM current_batch
-                """, {'table_name': table_name})
+                self.conn.execute(f'INSERT INTO "{table_name}" SELECT * FROM current_batch')
                 self.conn.unregister('current_batch')
         else:
             self.conn.register('temp_df', df)
-            self.conn.execute("""
-                CREATE TABLE IDENTIFIER(:table_name) AS
-                SELECT * FROM temp_df
-            """, {'table_name': table_name})
+            self.conn.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM temp_df')
             self.conn.unregister('temp_df')
 
     @staticmethod
@@ -174,9 +129,7 @@ class DataIngestion:
             raise ValueError(f"Output format not supported {output_format}.")
             
     def get_table_info(self, table_name: str) -> pd.DataFrame:
-        return self.conn.execute("""
-            DESCRIBE IDENTIFIER(:table_name)
-        """, {'table_name': table_name}).df()
+        return self.conn.execute(f'DESCRIBE "{table_name}"').df()
 
     def close(self):
         self.conn.close()
