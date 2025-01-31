@@ -7,7 +7,7 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        python-version: ["3.11", "3.12"]
+        python-version: ["3.12"]
     steps:
     - uses: actions/checkout@v4
     
@@ -23,16 +23,17 @@ jobs:
     
     - name: Set up virtual environment
       run: |
-        uv venv venv  # Explicitly create 'venv' directory
+        uv venv venv
         source venv/bin/activate
     
     - name: Install dependencies
       run: |
-        source venv/bin/activate  # Re-activate in each step
+        source venv/bin/activate
         uv pip install --upgrade pip
-        uv pip install pylint  # Fixed: Install pylint here
+        uv pip install pylint pandas polars duckdb pytest
+        uv pip install -e .
     
     - name: Code analysis with pylint
       run: |
         source venv/bin/activate
-        pylint $(git ls-files '*.py')  # Now pylint is available
+        pylint $(git ls-files '*.py')
