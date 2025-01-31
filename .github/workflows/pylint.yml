@@ -18,6 +18,10 @@ jobs:
       run: |
         curl -LsSf https://astral.sh/uv/install.sh | sh
         echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    - name: Set up virtual environment
+      run: |
+        uv venv venv
+        source venv/bin/activate
     - name: Install dependencies
       run: |
         uv pip install --upgrade pip
