@@ -24,8 +24,10 @@ jobs:
         source venv/bin/activate
     - name: Install dependencies
       run: |
+        source venv/bin/activate
         uv pip install --upgrade pip
         uv add pylint
     - name: Code analysis with pylint
       run: |
+        source venv/bin/activate
         pylint $(git ls-files '*.py')
