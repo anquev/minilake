@@ -13,7 +13,7 @@ dependencies = [
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
     "polars>=1.20.0",
-    "pyarrow>=19.0.0",
+    "pyarrow>=19.0.0"
 ]
 
 [project.optional-dependencies]
@@ -21,6 +21,12 @@ test = [
     "pytest>=8.2.0",
     "pytest-mock>=3.12.0"
 ]
+dev = [
+    "pylint>=3.0.0"
+]
+
+[tool.pylint.master]
+ignore-patterns = "test_*.py"
 
 [tool.setuptools]
 packages = ["minilake", "minilake.ingestion"]

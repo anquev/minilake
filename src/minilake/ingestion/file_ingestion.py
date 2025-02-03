@@ -1,10 +1,22 @@
+"""
+This module contains the DataIngestion class 
+which is used for ingesting data from various file formats.
+"""
+from pathlib import Path
+from typing import Union, Optional
 import duckdb
 import pandas as pd
 import polars as pl
-from pathlib import Path
-from typing import Union, Optional, List
 
 class DataIngestion:
+    """
+    Class for ingesting data from various file formats.
+    Accepted file formats are:
+    - CSV
+    - Parquet
+    - JSON
+    - Excel
+    """
     def __init__(self, database: Optional[str] = ':memory:'):
         self.conn = duckdb.connect(database)
         self._init_extensions()
@@ -21,11 +33,29 @@ class DataIngestion:
             schema: Optional[dict] = None,
             batch_size: Optional[int] = 100000
     ) -> None:
+        """
+        Ingest data from a file into a table in the database.
+        
+        Inputs:
+        - file_path: str or Path
+            Path to the file to ingest.
+        - table_name: str
+            Name of the table to create in the database.
+        - schema: dict, default None
+            Schema of the table to create.
+            If None, the schema will be inferred from the file.
+        - batch_size: int, default 100000
+            Batch size to use when ingesting data from a DataFrame.
+            
+        Returns:
+        None
+        """
+
         file_path = Path(file_path)
 
         if not file_path.exists():
             raise FileNotFoundError("File not found, please verify the provided path")
-        
+
         extension = file_path.suffix.lower()
 
         try:
@@ -38,7 +68,10 @@ class DataIngestion:
             elif extension in ['.xls', '.xlsx']:
                 self._ingest_excel(file_path, table_name, schema, batch_size)
             else:
-                raise ValueError(f"Unsupported file format {extension}, please provide a valid file extension.")
+                raise ValueError(f"""
+                                 Unsupported file format {extension},
+                                 please provide a valid file extension.
+                                 """)
         except Exception as e:
             raise e
 
@@ -100,13 +133,13 @@ class DataIngestion:
 
             total_rows = len(df)
             batch_size = batch_size or total_rows
-            
+
             for i in range(0, total_rows, batch_size):
                 if isinstance(df, pd.DataFrame):
                     batch = df.iloc[i:i+batch_size]
                 else:
                     batch = df.slice(i, batch_size)
-                
+
                 self.conn.register('current_batch', batch)
                 self.conn.execute(f'INSERT INTO "{table_name}" SELECT * FROM current_batch')
                 self.conn.unregister('current_batch')
@@ -120,16 +153,47 @@ class DataIngestion:
         columns = [f'"{col}" {dtype}' for col, dtype in schema.items()]
         return f"({', '.join(columns)})"
 
-    def query(self, sql: str, output_format: Union[pd.DataFrame, pl.DataFrame] = pd.DataFrame) -> Union[pd.DataFrame, pl.DataFrame]:
+    def query(self,
+              sql: str,
+              output_format: Union[pd.DataFrame, pl.DataFrame] = pd.DataFrame
+              ) -> Union[pd.DataFrame, pl.DataFrame]:
+        """
+        Execute a SQL query on the database and return the result in the specified format.
+        
+        Inputs:
+        - sql: str
+            SQL query to execute (using DuckDB syntax).
+        - output_format: Union[pd.DataFrame, pl.DataFrame], default pd.DataFrame
+            Output format of the result.
+            Supported formats are pd.DataFrame and pl.DataFrame.
+        
+        Returns:
+        - Union[pd.DataFrame, pl.DataFrame]
+            Result of the query in the specified format.
+        """
+
         if output_format == pd.DataFrame:
             return self.conn.execute(sql).df()
-        elif output_format == pl.DataFrame:
+        if output_format == pl.DataFrame:
             return self.conn.execute(sql).pl()
-        else:
-            raise ValueError(f"Output format not supported {output_format}.")
-            
+        raise ValueError(f"Output format not supported: {output_format}")
+
     def get_table_info(self, table_name: str) -> pd.DataFrame:
+        """
+        Get information about a table in the database.
+        
+        Inputs:
+        - table_name: str
+            Name of the table to get information about.
+            
+        Returns:
+        - pd.DataFrame
+            Information about the table.
+        """
         return self.conn.execute(f'DESCRIBE "{table_name}"').df()
 
     def close(self):
+        """
+        Close the connection to the database.
+        """
         self.conn.close()
