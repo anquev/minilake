@@ -9,6 +9,7 @@ description = ""
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
+    "deltalake>=0.24.0",
     "duckdb>=1.1.3",
     "openpyxl>=3.1.5",
     "pandas>=2.2.3",
@@ -20,7 +21,8 @@ dependencies = [
 [project.optional-dependencies]
 test = [
     "pytest>=8.2.0",
-    "pytest-mock>=3.12.0"
+    "pytest-mock>=3.12.0",
+    "pytest-cov>=4.1.0" 
 ]
 dev = [
     "pylint>=3.0.0"
@@ -30,5 +32,5 @@ dev = [
 ignore-patterns = "test_*.py"
 
 [tool.setuptools]
-packages = ["minilake", "minilake.ingestion"]
+packages = ["minilake", "minilake.services"]
 package-dir = {"" = "src"}
