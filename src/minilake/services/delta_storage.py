@@ -4,6 +4,7 @@ from typing import Optional, Union, List, Dict
 import duckdb
 from deltalake import DeltaTable, write_deltalake
 import pyarrow as pa
+import pyarrow.dataset as ds
 from datetime import datetime
 
 
@@ -45,18 +46,44 @@ class DeltaStorage:
             partition_by=partition_by
         )
 
-    def read_to_duckdb(self, 
-                    delta_path: str, 
-                    table_name: str, 
-                    version: Optional[int] = None,
-                    timestamp: Optional[Union[str, datetime]] = None
-                    ) -> None:
+    def read_to_duckdb(
+        self,
+        delta_path: str,
+        table_name: str,
+        version: Optional[int] = None,
+        timestamp: Optional[Union[str, datetime]] = None
+    ) -> None:
+        """Read a Delta table into DuckDB."""
+        _path = self.delta_root / delta_path
+        
         try:
-            dt = DeltaTable(str(self.delta_root / delta_path))
+            # Load DeltaTable with optional version or timestamp
+            dt_args = {"table_uri": str(_path)}
+            if version is not None:
+                dt_args["version"] = version
+            elif timestamp is not None:
+                dt_args["timestamp"] = timestamp
             
-            table = dt.scan().to_pyarrow()
+            dt = DeltaTable(**dt_args)
+            
+            files = dt.files()
+            if not files:
+                raise RuntimeError("No files found in Delta table")
                 
-            self.conn.execute(f'CREATE TABLE "{table_name}" AS SELECT * FROM arrow_table($1)', [table])
+            first_file = str(_path / files[0])
+            self.conn.execute(f'''
+                CREATE OR REPLACE TABLE "{table_name}" AS 
+                SELECT * FROM parquet_scan(?)
+            ''', [first_file])
+        
+            if len(files) > 1:
+                for file in files[1:]:
+                    file_path = str(_path / file)
+                    self.conn.execute(f'''
+                        INSERT INTO "{table_name}"
+                        SELECT * FROM parquet_scan(?)
+                    ''', [file_path])
+                
         except Exception as e:
             raise RuntimeError(f"Error reading Delta table: {str(e)}") from e
 
@@ -65,7 +92,8 @@ class DeltaStorage:
         _path = self.delta_root / delta_path
         dt = DeltaTable(str(_path))
         
-        schema_str = dt.schema().json()
+        import json
+        schema_str = json.loads(dt.schema().to_json())
         
         return {
             'version': dt.version(),
