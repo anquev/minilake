@@ -198,4 +198,4 @@ def test_append_mode(delta_storage):
     result = delta_storage.conn.execute("""
         SELECT COUNT(*) as cnt FROM final_data
     """).fetchone()[0]
-    assert result == 7
+    assert result == 7  # 5 original + 2 appended rows
