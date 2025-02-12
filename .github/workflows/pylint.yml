@@ -1,0 +1,39 @@
+name: Pylint
+
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.12"]
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python ${{ matrix.python-version }}
+      uses: actions/setup-python@v3
+      with:
+        python-version: ${{ matrix.python-version }}
+    
+    - name: Install uv
+      run: |
+        curl -LsSf https://astral.sh/uv/install.sh | sh
+        echo "$HOME/.cargo/bin" >> $GITHUB_PATH
+    
+    - name: Set up virtual environment
+      run: |
+        uv venv venv
+        source venv/bin/activate
+    
+    - name: Install dependencies
+      run: |
+        source venv/bin/activate
+        uv pip install --upgrade pip
+        uv pip install pylint pandas polars duckdb pytest
+        uv pip install -e .
+    
+    - name: Code analysis with pylint
+      run: |
+        source venv/bin/activate
+        pylint --disable=R0913,R0917,C0415,R0913,R0917,R0912 src/minilake/**/*.py
