@@ -154,25 +154,3 @@ class S3Manager:
     def close(self):
         """Close all connections."""
         self.ingestion.close()
-
-
-# Example
-if __name__ == "__main__":
-    manager = S3Manager()
-
-    try:
-        manager.make_deltatable(
-            file_path="data/sample.csv",
-            table_name="sample_data",
-            delta_path="sample_delta",
-            partition_by=["date"]
-        )
-
-        query_result = manager.query_table(
-            delta_path="sample_delta",
-            query="SELECT * FROM temp_delta LIMIT 5"
-        )
-        print(query_result)
-
-    finally:
-        manager.close()

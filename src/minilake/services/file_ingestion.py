@@ -153,31 +153,6 @@ class DataIngestion:
         columns = [f'"{col}" {dtype}' for col, dtype in schema.items()]
         return f"({', '.join(columns)})"
 
-    def query(self,
-              sql: str,
-              output_format: Union[pd.DataFrame, pl.DataFrame] = pd.DataFrame
-              ) -> Union[pd.DataFrame, pl.DataFrame]:
-        """
-        Execute a SQL query on the database and return the result in the specified format.
-        
-        Inputs:
-        - sql: str
-            SQL query to execute (using DuckDB syntax).
-        - output_format: Union[pd.DataFrame, pl.DataFrame], default pd.DataFrame
-            Output format of the result.
-            Supported formats are pd.DataFrame and pl.DataFrame.
-        
-        Returns:
-        - Union[pd.DataFrame, pl.DataFrame]
-            Result of the query in the specified format.
-        """
-
-        if output_format == pd.DataFrame:
-            return self.conn.execute(sql).df()
-        if output_format == pl.DataFrame:
-            return self.conn.execute(sql).pl()
-        raise ValueError(f"Output format not supported: {output_format}")
-
     def get_table_info(self, table_name: str) -> pd.DataFrame:
         """
         Get information about a table in the database.
