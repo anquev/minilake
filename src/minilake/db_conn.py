@@ -6,16 +6,16 @@ from typing import Optional
 import duckdb
 
 class DBConnection:
-    """Class to manage connection to DuckDB database."""
+    """Class to manage connection to DuckDB database. Ensuring only one connection is created."""
 
     _instance = None
 
     @classmethod
-    def get_connection(cls, database: Optional[str] = ':memory:') -> duckdb.DuckDBPyConnection:
+    def get_connection(conn_cls, database: Optional[str] = ':memory:') -> duckdb.DuckDBPyConnection:
         """Create a connection to the database."""
-        if cls._instance is None:
-            cls._instance = cls(database)
-        return cls._instance.conn
+        if conn_cls._instance is None: # conn_cls is the class itself
+            conn_cls._instance = conn_cls(database)
+        return conn_cls._instance.conn
 
     def __init__(self, database: Optional[str] = ':memory:'):
         if DBConnection._instance is not None:
