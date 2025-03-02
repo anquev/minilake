@@ -19,7 +19,7 @@ class DBConnection:
 
     def __init__(self, database: Optional[str] = ':memory:'):
         if DBConnection._instance is not None:
-            raise RuntimeError("Cette classe est un singleton!")
+            raise RuntimeError("DBConnection is a singleton class. Use get_connection() instead.")
         self.conn = duckdb.connect(database)
         self._init_extensions()
         DBConnection._instance = self
