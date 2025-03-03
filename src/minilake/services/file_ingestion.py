@@ -146,3 +146,7 @@ class DataIngestion:
         Get information about a table in the database.
         """
         return self.conn.execute(f'DESCRIBE "{table_name}"').df()
+
+    def close_connection(self) -> None:
+        """Close the connection to the database."""
+        self.conn.close()
