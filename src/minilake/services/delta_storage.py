@@ -1,4 +1,5 @@
-"""DeltaStorage module for managing Delta Lake operations with DuckDB and MinIO integration."""
+# src/minilake/services/delta_storage.py
+"""Module to manage Delta Lake storage operations with DuckDB and MinIO integration."""
 from pathlib import Path
 from typing import Optional, Union, List, Dict
 from datetime import datetime
@@ -8,49 +9,38 @@ from deltalake import DeltaTable, write_deltalake
 import pyarrow as pa
 import boto3
 from botocore.client import Config
+from minilake.config import Config as MinilakeConfig
+from minilake.db_conn import DBConnection
 
 class DeltaStorage:
-    """Manages Delta Lake storage operations with DuckDB and MinIO integration."""
+    """Handle Delta Lake storage operations with DuckDB and MinIO"""
 
     def __init__(
         self,
-        duckdb_conn: duckdb.DuckDBPyConnection,
-        delta_root: Optional[str] = None,
-        minio_endpoint: Optional[str] = None,
-        minio_access_key: Optional[str] = None,
-        minio_secret_key: Optional[str] = None,
-        minio_bucket: Optional[str] = None,
-        use_minio: bool = False
+        config: Optional[MinilakeConfig] = None,
+        conn: Optional[duckdb.DuckDBPyConnection] = None
     ):
-        """Initialize DeltaStorage instance with optional MinIO configuration."""
-        self.conn = duckdb_conn
-        self.use_minio = use_minio
+        """Initialize the DeltaStorage class with minio client."""
+        self.config = config or MinilakeConfig()
+        self.conn = conn or DBConnection.get_connection()
 
-        if use_minio:
-            if not all([minio_endpoint, minio_access_key, minio_secret_key, minio_bucket]):
-                raise ValueError("All MinIO parameters must be provided when use_minio is True")
+        self.use_minio = self.config.use_minio
 
-            self.minio_endpoint = minio_endpoint.replace('http://', '')
+        if self.use_minio:
+            self.minio_endpoint = self.config.minio_endpoint.replace('http://', '')
             self.minio_client = boto3.client(
                 's3',
                 endpoint_url=f'http://{self.minio_endpoint}',
-                aws_access_key_id=minio_access_key,
-                aws_secret_access_key=minio_secret_key,
+                aws_access_key_id=self.config.minio_access_key,
+                aws_secret_access_key=self.config.minio_secret_key,
                 config=Config(signature_version='s3v4'),
-                region_name='us-east-1'
+                region_name='eu-east-1'
             )
-            self.minio_bucket = minio_bucket
-            self.delta_root = delta_root or "delta-tables"
-
-            self.storage_options = {
-                "AWS_ENDPOINT_URL": f"http://{self.minio_endpoint}",
-                "AWS_ACCESS_KEY_ID": minio_access_key,
-                "AWS_SECRET_ACCESS_KEY": minio_secret_key,
-                "AWS_REGION": "us-east-1",
-                "AWS_ALLOW_HTTP": "true"
-            }
+            self.minio_bucket = self.config.minio_bucket
+            self.delta_root = self.config.delta_root
+            self.storage_options = self.config.get_storage_options()
         else:
-            self.delta_root = Path(delta_root or 'delta-tables')
+            self.delta_root = Path(self.config.delta_root)
             self.delta_root.mkdir(parents=True, exist_ok=True)
             self.storage_options = None
 
@@ -62,7 +52,7 @@ class DeltaStorage:
             schema: Optional[pa.Schema] = None,
             mode: str = "overwrite"
     ) -> None:
-        """Create a Delta table from a DuckDB table."""
+        """Create a Delta table from DuckDB."""
         if self.use_minio:
             _path = f"s3://{self.minio_bucket}/{self.delta_root}/{delta_path}"
         else:
@@ -88,7 +78,7 @@ class DeltaStorage:
         version: Optional[int] = None,
         timestamp: Optional[Union[str, datetime]] = None
     ) -> None:
-        """Read a Delta table into DuckDB."""
+        """Read a Delta table to DuckDB."""
         try:
             if self.use_minio:
                 _path = f"s3://{self.minio_bucket}/{self.delta_root}/{delta_path}"
@@ -111,16 +101,14 @@ class DeltaStorage:
             if not files:
                 raise RuntimeError("No files found in Delta table")
 
-            # Configure DuckDB for S3 if using MinIO
             if self.use_minio:
-                # First install and load httpfs if not already done
                 try:
                     self.conn.execute("INSTALL httpfs")
                     self.conn.execute("LOAD httpfs")
                 except duckdb.CatalogException:
-                    pass  # Already installed and loaded
+                    pass  # If already done
 
-                # Configure S3 settings
+                # Configure MinIO connection
                 self.conn.execute("SET s3_region='us-east-1'")
                 self.conn.execute(
                     f"SET s3_access_key_id='{self.storage_options['AWS_ACCESS_KEY_ID']}'"
@@ -134,7 +122,6 @@ class DeltaStorage:
                 self.conn.execute("SET s3_use_ssl=false")
                 self.conn.execute("SET s3_url_style='path'")
 
-            # Create table from first file
             file_paths = []
             for file in files:
                 if self.use_minio:
@@ -144,13 +131,14 @@ class DeltaStorage:
                 else:
                     file_paths.append(str(_path / file))
 
-            # Create table using UNION ALL for all files
+            # Create table from first file
             create_query = f'''
                 CREATE OR REPLACE TABLE "{table_name}" AS
                 SELECT * FROM parquet_scan('{file_paths[0]}')
             '''
             self.conn.execute(create_query)
 
+            # Add data from other files
             if len(file_paths) > 1:
                 for file_path in file_paths[1:]:
                     insert_query = f'''
@@ -160,7 +148,7 @@ class DeltaStorage:
                     self.conn.execute(insert_query)
 
         except Exception as e:
-            raise RuntimeError(f"Error reading Delta table: {str(e)}") from e
+            raise RuntimeError(f"Error while reading DeltaLake table: {str(e)}") from e
 
     def get_table_info(self, delta_path: str) -> Dict:
         """Get information about a Delta table."""
@@ -205,7 +193,8 @@ class DeltaStorage:
             zorder_by: Optional[List[str]] = None
     ) -> None:
         """
-        For better performance
+        Optimize a Delta table by compacting and reordering data.
+        If zorder_by is provided, the data will be z-ordered by the specified columns.
         """
         if self.use_minio:
             _path = f"s3://{self.minio_bucket}/{self.delta_root}/{delta_path}"
