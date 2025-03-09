@@ -1,30 +1,26 @@
+# src/minilake/services/file_ingestion.py
 """
-This module contains the DataIngestion class 
-which is used for ingesting data from various file formats.
+Module to ingest data from various file formats into a DuckDB database.
 """
 from pathlib import Path
 from typing import Union, Optional
 import duckdb
 import pandas as pd
 import polars as pl
+from minilake.db_conn import DBConnection
 
 class DataIngestion:
     """
-    Class for ingesting data from various file formats.
-    Accepted file formats are:
+    Class to ingest data from various file formats into a DuckDB database.
+    Accepted formats are:
     - CSV
     - Parquet
     - JSON
     - Excel
     """
-    def __init__(self, database: Optional[str] = ':memory:'):
-        self.conn = duckdb.connect(database)
-        self._init_extensions()
-
-    def _init_extensions(self):
-        self.conn.execute("INSTALL httpfs; LOAD httpfs;")
-        self.conn.execute("INSTALL parquet; LOAD parquet;")
-        self.conn.execute("INSTALL json; LOAD json;")
+    def __init__(self, conn: Optional[duckdb.DuckDBPyConnection] = None):
+        """Initialize the DataIngestion class."""
+        self.conn = conn or DBConnection.get_connection()
 
     def ingest_file(
             self,
@@ -34,27 +30,22 @@ class DataIngestion:
             batch_size: Optional[int] = 100000
     ) -> None:
         """
-        Ingest data from a file into a table in the database.
-        
+        Ingest data from a file into the database.
+
         Inputs:
         - file_path: str or Path
             Path to the file to ingest.
         - table_name: str
-            Name of the table to create in the database.
+            Table name in the database.
         - schema: dict, default None
-            Schema of the table to create.
-            If None, the schema will be inferred from the file.
+            Table schema. If None, schema will be inferred from the file.
         - batch_size: int, default 100000
-            Batch size to use when ingesting data from a DataFrame.
-            
-        Returns:
-        None
+            Batch size to ingest data.
         """
-
         file_path = Path(file_path)
 
         if not file_path.exists():
-            raise FileNotFoundError("File not found, please verify the provided path")
+            raise FileNotFoundError("File not found, please provide a valid file path.")
 
         extension = file_path.suffix.lower()
 
@@ -68,12 +59,9 @@ class DataIngestion:
             elif extension in ['.xls', '.xlsx']:
                 self._ingest_excel(file_path, table_name, schema, batch_size)
             else:
-                raise ValueError(f"""
-                                 Unsupported file format {extension},
-                                 please provide a valid file extension.
-                                 """)
+                raise ValueError(f"File format not handled yet {extension}")
         except Exception as e:
-            raise e
+            raise RuntimeError(f"Error during file ingestion: {str(e)}") from e
 
     def _ingest_parquet(self, file_path: Path, table_name: str) -> None:
         query = f"""
@@ -153,47 +141,12 @@ class DataIngestion:
         columns = [f'"{col}" {dtype}' for col, dtype in schema.items()]
         return f"({', '.join(columns)})"
 
-    def query(self,
-              sql: str,
-              output_format: Union[pd.DataFrame, pl.DataFrame] = pd.DataFrame
-              ) -> Union[pd.DataFrame, pl.DataFrame]:
-        """
-        Execute a SQL query on the database and return the result in the specified format.
-        
-        Inputs:
-        - sql: str
-            SQL query to execute (using DuckDB syntax).
-        - output_format: Union[pd.DataFrame, pl.DataFrame], default pd.DataFrame
-            Output format of the result.
-            Supported formats are pd.DataFrame and pl.DataFrame.
-        
-        Returns:
-        - Union[pd.DataFrame, pl.DataFrame]
-            Result of the query in the specified format.
-        """
-
-        if output_format == pd.DataFrame:
-            return self.conn.execute(sql).df()
-        if output_format == pl.DataFrame:
-            return self.conn.execute(sql).pl()
-        raise ValueError(f"Output format not supported: {output_format}")
-
     def get_table_info(self, table_name: str) -> pd.DataFrame:
         """
         Get information about a table in the database.
-        
-        Inputs:
-        - table_name: str
-            Name of the table to get information about.
-            
-        Returns:
-        - pd.DataFrame
-            Information about the table.
         """
         return self.conn.execute(f'DESCRIBE "{table_name}"').df()
 
-    def close(self):
-        """
-        Close the connection to the database.
-        """
+    def close_connection(self) -> None:
+        """Close the connection to the database."""
         self.conn.close()
