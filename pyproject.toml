@@ -34,5 +34,5 @@ dev = [
 ignore-patterns = "test_*.py"
 
 [tool.setuptools]
-packages = ["minilake", "minilake.services"]
+packages = ["minilake"]
 package-dir = {"" = "src"}
