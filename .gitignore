@@ -135,6 +135,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+architecture.ini
 
 # Spyder project settings
 .spyderproject
@@ -174,3 +175,6 @@ cython_debug/
 /data
 *.csv
 *.xls*
+
+# Backup files
+backup/
