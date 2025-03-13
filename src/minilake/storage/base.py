@@ -1,17 +1,24 @@
 """Base interfaces for storage implementations."""
+
 from abc import ABC, abstractmethod
-from typing import Optional, Union, List, Dict, Any
 from datetime import datetime
+from typing import Any
+
 import pyarrow as pa
+
 
 class StorageInterface(ABC):
     """Interface for storage operations."""
 
     @abstractmethod
-    def create_table(self, table_name: str, delta_path: str, 
-                    partition_by: Optional[List[str]] = None,
-                    schema: Optional[pa.Schema] = None, 
-                    mode: str = "overwrite") -> None:
+    def create_table(
+        self,
+        table_name: str,
+        delta_path: str,
+        partition_by: list[str] | None = None,
+        schema: pa.Schema | None = None,
+        mode: str = "overwrite",
+    ) -> None:
         """Create a Delta table from a DuckDB table.
 
         Args:
@@ -24,9 +31,13 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def read_to_duckdb(self, delta_path: str, table_name: str,
-                      version: Optional[int] = None,
-                      timestamp: Optional[Union[str, datetime]] = None) -> None:
+    def read_to_duckdb(
+        self,
+        delta_path: str,
+        table_name: str,
+        version: int | None = None,
+        timestamp: str | datetime | None = None,
+    ) -> None:
         """Read a Delta table into DuckDB.
 
         Args:
@@ -38,7 +49,7 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def get_table_info(self, delta_path: str) -> Dict[str, Any]:
+    def get_table_info(self, delta_path: str) -> dict[str, Any]:
         """Get information about a Delta table.
 
         Args:
@@ -50,7 +61,7 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def vacuum(self, delta_path: str, retention: Optional[int] = 168) -> None:
+    def vacuum(self, delta_path: str, retention: int | None = 168) -> None:
         """Clean up old versions of a Delta table.
 
         Args:
@@ -60,7 +71,7 @@ class StorageInterface(ABC):
         pass
 
     @abstractmethod
-    def optimize(self, delta_path: str, zorder_by: Optional[List[str]] = None) -> None:
+    def optimize(self, delta_path: str, zorder_by: list[str] | None = None) -> None:
         """Optimize a Delta table.
 
         Args:

@@ -27,12 +27,52 @@ test = [
     "pytest-cov>=4.1.0" 
 ]
 dev = [
-    "pylint>=3.0.0"
+    "ruff>=0.3.0"
 ]
 
-[tool.pylint.master]
-ignore-patterns = "test_*.py"
+[tool.ruff]
+# Enable pycodestyle (`E`), Pyflakes (`F`), and isort (`I`) codes
+select = ["E", "F", "I", "N", "W", "B", "C4", "UP", "RUF"]
+ignore = []
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# To exclude
+exclude = [
+    ".bzr",
+    ".direnv",
+    ".eggs",
+    ".git",
+    ".git-rewrite",
+    ".hg",
+    ".mypy_cache",
+    ".nox",
+    ".pants.d",
+    ".pytype",
+    ".ruff_cache",
+    ".svn",
+    ".tox",
+    ".venv",
+    "__pypackages__",
+    "_build",
+    "buck-out",
+    "build",
+    "dist",
+    "node_modules",
+    "venv",
+]
+
+# Same as Black.
+line-length = 88
+indent-width = 4
+
+target-version = "py312"
+
+[tool.ruff.isort]
+known-first-party = ["minilake"]
 
 [tool.setuptools]
-packages = ["minilake", "minilake.services"]
+packages = ["minilake"]
 package-dir = {"" = "src"}
