@@ -79,7 +79,7 @@ class S3DeltaStorage(DeltaStorage):
             self.conn.execute(
                 f"SET s3_access_key_id='{self.storage_options['AWS_ACCESS_KEY_ID']}'"
             )
-            secret_key = self.storage_options['AWS_SECRET_ACCESS_KEY']
+            secret_key = self.storage_options["AWS_SECRET_ACCESS_KEY"]
             self.conn.execute(f"SET s3_secret_access_key='{secret_key}'")
             self.conn.execute(f"SET s3_endpoint='{self.endpoint}'")
             self.conn.execute("SET s3_use_ssl=false")
