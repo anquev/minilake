@@ -1,16 +1,17 @@
 """Local filesystem storage implementation for Delta Lake."""
-from pathlib import Path
-from typing import List
 
-from minilake.storage.delta import DeltaStorage
+from pathlib import Path
+
 from minilake.core.exceptions import StorageError
+from minilake.storage.delta import DeltaStorage
+
 
 class LocalDeltaStorage(DeltaStorage):
     """Delta Lake storage using local filesystem."""
 
     def __init__(self, conn, delta_root: str = "delta-tables"):
         """Initialize local Delta storage.
-        
+
         Args:
             conn: DuckDB connection
             delta_root: Root directory for Delta tables
@@ -23,7 +24,9 @@ class LocalDeltaStorage(DeltaStorage):
         """Get the full path to a Delta table."""
         return self.delta_root / delta_path
 
-    def _load_delta_files(self, files: List[str], delta_path: Path, table_name: str) -> None:
+    def _load_delta_files(
+        self, files: list[str], delta_path: Path, table_name: str
+    ) -> None:
         """Load Delta table files into DuckDB."""
         try:
             file_paths = []
@@ -47,4 +50,4 @@ class LocalDeltaStorage(DeltaStorage):
                     self.conn.execute(insert_query)
 
         except Exception as e:
-            raise StorageError(f"Error loading Delta files into DuckDB: {str(e)}") from e
+            raise StorageError(f"Error loading Delta files into DuckDB: {e!s}") from e
