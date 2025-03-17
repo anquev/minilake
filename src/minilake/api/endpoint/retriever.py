@@ -49,7 +49,7 @@ def retrieve_data(
             raise HTTPException(
                 status_code=422,
                 detail="Invalid timestamp format. Use ISO format "
-                "(e.g., '2024-01-01T00:00:00')"
+                "(e.g., '2024-01-01T00:00:00')",
             ) from err
 
     # Only pass version to read_to_duckdb since timestamp is not supported
