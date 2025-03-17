@@ -7,8 +7,8 @@ import datetime
 import duckdb
 from fastapi import FastAPI, HTTPException
 
-from minilake.config import Config
 from minilake import S3Manager
+from minilake.config import Config
 
 app = FastAPI()
 conn = duckdb.connect(database=":memory:", read_only=False)
@@ -41,15 +41,16 @@ def retrieve_data(
     Returns:
         Dict containing a success message
     """
-    # Convert timestamp string to datetime if needed
+    # Convert timestamp string to datetime
     if isinstance(timestamp, str):
         try:
             timestamp = datetime.datetime.fromisoformat(timestamp)
-        except ValueError:
+        except ValueError as err:
             raise HTTPException(
                 status_code=422,
-                detail="Invalid timestamp format. Use ISO format (e.g., '2024-01-01T00:00:00')"
-            )
+                detail="Invalid timestamp format. Use ISO format "
+                "(e.g., '2024-01-01T00:00:00')"
+            ) from err
 
     # Only pass version to read_to_duckdb since timestamp is not supported
     s3.read_to_duckdb(delta_path, table_name, version=version)

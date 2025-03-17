@@ -7,9 +7,9 @@ from typing import Any
 
 import duckdb
 import pyarrow as pa
-from pyarrow.lib import TimestampType
 from deltalake import DeltaTable, write_deltalake
 from deltalake.writer import WriterProperties
+from pyarrow.lib import TimestampType
 
 from minilake.core.exceptions import StorageError
 from minilake.storage.base import StorageInterface
@@ -57,14 +57,14 @@ class DeltaStorage(StorageInterface):
         mode: str = "overwrite",
     ) -> None:
         """Create Delta table from DuckDB table.
-        
+
         Args:
             table_name: Name of the source DuckDB table
             delta_path: Target path for Delta table
             partition_by: List of column names to partition by
             schema: Optional PyArrow schema to cast data
             mode: Write mode ('overwrite' or 'append')
-        
+
         Raises:
             StorageError: If table creation fails
         """
