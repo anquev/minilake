@@ -13,14 +13,17 @@ from minilake.config import Config
 app = FastAPI()
 conn = duckdb.connect(database=":memory:", read_only=False)
 
+# Initialize S3Manager only if configuration is available
 config = Config()
-s3 = S3Manager(
-    conn=conn,
-    endpoint=config.minio_endpoint,
-    access_key=config.minio_access_key,
-    secret_key=config.minio_secret_key,
-    bucket=config.minio_bucket,
-)
+s3 = None
+if config.use_minio:
+    s3 = S3Manager(
+        conn=conn,
+        endpoint=config.minio_endpoint,
+        access_key=config.minio_access_key,
+        secret_key=config.minio_secret_key,
+        bucket=config.minio_bucket,
+    )
 
 
 @app.get("/retrieve")
@@ -41,6 +44,12 @@ def retrieve_data(
     Returns:
         Dict containing a success message
     """
+    if s3 is None:
+        raise HTTPException(
+            status_code=503,
+            detail="S3 storage is not configured",
+        )
+
     # Convert timestamp string to datetime
     if isinstance(timestamp, str):
         try:
@@ -49,7 +58,7 @@ def retrieve_data(
             raise HTTPException(
                 status_code=422,
                 detail="Invalid timestamp format. Use ISO format "
-                "(e.g., '2024-01-01T00:00:00')"
+                "(e.g., '2024-01-01T00:00:00')",
             ) from err
 
     # Only pass version to read_to_duckdb since timestamp is not supported

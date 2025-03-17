@@ -95,7 +95,7 @@ class DeltaStorage(StorageInterface):
                 storage_options=self.storage_options,
                 engine="rust",
                 schema_mode="overwrite",
-                writer_properties=writer_props
+                writer_properties=writer_props,
             )
         except Exception as e:
             raise StorageError(f"Error creating Delta table: {e!s}") from e

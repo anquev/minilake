@@ -1,11 +1,11 @@
 """Test configuration and fixtures."""
 import os
 import time
+
 import boto3
+import pytest
 from botocore.client import Config
 from dotenv import load_dotenv
-
-import pytest
 
 
 @pytest.fixture(scope="session")
@@ -42,4 +42,4 @@ def minio_server():
     except s3_client.exceptions.BucketAlreadyOwnedByYou:
         pass
 
-    yield 
+    yield

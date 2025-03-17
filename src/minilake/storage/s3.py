@@ -1,5 +1,7 @@
 """S3/MinIO storage implementation for Delta Lake."""
 
+from pathlib import Path
+
 import boto3
 from botocore.client import Config
 
@@ -61,8 +63,13 @@ class S3Manager(DeltaStorage):
 
     def _get_delta_path(self, delta_path: str) -> str:
         """Get the full path to a Delta table."""
-        delta_path = delta_path.strip('/')
-        delta_root = self.delta_root.strip('/')
+        delta_path = delta_path.strip("/")
+        delta_root = self.delta_root.strip("/")
+
+        # Check if delta_root is a local path
+        if Path(delta_root).is_absolute() or not delta_root.startswith("s3://"):
+            return str(Path(delta_root) / delta_path)
+
         return f"s3://{self.bucket}/{delta_root}/{delta_path}"
 
     def _load_delta_files(
@@ -70,6 +77,34 @@ class S3Manager(DeltaStorage):
     ) -> None:
         """Load Delta table files into DuckDB."""
         try:
+            # Check if we're using local filesystem
+            if Path(delta_path).is_absolute() or not delta_path.startswith("s3://"):
+                # Configure DuckDB for local filesystem
+                self.conn.execute("SET enable_http_metadata_cache=false")
+
+                # Prepare file paths
+                file_paths = []
+                for file in files:
+                    file_paths.append(str(Path(delta_path) / file))
+
+                # Create table from first file
+                create_query = f"""
+                    CREATE OR REPLACE TABLE "{table_name}" AS
+                    SELECT * FROM parquet_scan('{file_paths[0]}')
+                """
+                self.conn.execute(create_query)
+
+                # Add data from other files
+                if len(file_paths) > 1:
+                    for file_path in file_paths[1:]:
+                        insert_query = f"""
+                            INSERT INTO "{table_name}"
+                            SELECT * FROM parquet_scan('{file_path}')
+                        """
+                        self.conn.execute(insert_query)
+                return
+
+            # S3/MinIO specific setup
             try:
                 self.conn.execute("INSTALL httpfs")
                 self.conn.execute("LOAD httpfs")
@@ -93,19 +128,19 @@ class S3Manager(DeltaStorage):
                 file_paths.append(f"{delta_path}/{file}")
 
             # Create table from first file
-            create_query = f'''
+            create_query = f"""
                 CREATE OR REPLACE TABLE "{table_name}" AS
                 SELECT * FROM parquet_scan('{file_paths[0]}')
-            '''
+            """
             self.conn.execute(create_query)
 
             # Add data from other files
             if len(file_paths) > 1:
                 for file_path in file_paths[1:]:
-                    insert_query = f'''
+                    insert_query = f"""
                         INSERT INTO "{table_name}"
                         SELECT * FROM parquet_scan('{file_path}')
-                    '''
+                    """
                     self.conn.execute(insert_query)
 
         except Exception as e:
