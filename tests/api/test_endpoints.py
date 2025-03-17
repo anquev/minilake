@@ -1,11 +1,13 @@
 """Unit tests for API endpoints."""
 
 
+import duckdb
 import pyarrow as pa
 import pytest
 from fastapi.testclient import TestClient
 
-from minilake.api.endpoint.retriever import app, s3
+from minilake.api.endpoint.retriever import app
+from minilake.storage.s3 import S3Manager
 
 
 @pytest.fixture
@@ -15,8 +17,18 @@ def client():
 
 
 @pytest.fixture(autouse=True)
-def setup_test_table(minio_server):
+def setup_test_table():
     """Create a test Delta table before each test."""
+    # Create a test configuration
+    conn = duckdb.connect(":memory:")
+    s3 = S3Manager(
+        conn=conn,
+        endpoint="localhost:9000",
+        access_key="minioadmin",
+        secret_key="minioadmin",
+        bucket="test-bucket",
+    )
+
     # Drop table if it exists
     try:
         s3.conn.execute("DROP TABLE IF EXISTS test_table")
