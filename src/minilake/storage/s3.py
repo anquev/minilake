@@ -7,7 +7,7 @@ from minilake.core.exceptions import ConfigurationError, StorageError
 from minilake.storage.delta import DeltaStorage
 
 
-class S3DeltaStorage(DeltaStorage):
+class S3Manager(DeltaStorage):
     """Delta Lake storage using S3/MinIO."""
 
     def __init__(
@@ -61,7 +61,9 @@ class S3DeltaStorage(DeltaStorage):
 
     def _get_delta_path(self, delta_path: str) -> str:
         """Get the full path to a Delta table."""
-        return f"s3://{self.bucket}/{self.delta_root}/{delta_path}"
+        delta_path = delta_path.strip('/')
+        delta_root = self.delta_root.strip('/')
+        return f"s3://{self.bucket}/{delta_root}/{delta_path}"
 
     def _load_delta_files(
         self, files: list[str], delta_path: str, table_name: str

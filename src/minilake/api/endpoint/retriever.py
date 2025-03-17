@@ -5,13 +5,22 @@ API endpoint for data retrieval communicating with S3.
 import datetime
 
 import duckdb
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 
+from minilake.config import Config
 from minilake import S3Manager
 
 app = FastAPI()
 conn = duckdb.connect(database=":memory:", read_only=False)
-s3 = S3Manager()
+
+config = Config()
+s3 = S3Manager(
+    conn=conn,
+    endpoint=config.minio_endpoint,
+    access_key=config.minio_access_key,
+    secret_key=config.minio_secret_key,
+    bucket=config.minio_bucket,
+)
 
 
 @app.get("/retrieve")
@@ -32,5 +41,16 @@ def retrieve_data(
     Returns:
         Dict containing a success message
     """
-    s3._to_duckdb(delta_path, table_name, version, timestamp)
+    # Convert timestamp string to datetime if needed
+    if isinstance(timestamp, str):
+        try:
+            timestamp = datetime.datetime.fromisoformat(timestamp)
+        except ValueError:
+            raise HTTPException(
+                status_code=422,
+                detail="Invalid timestamp format. Use ISO format (e.g., '2024-01-01T00:00:00')"
+            )
+
+    # Only pass version to read_to_duckdb since timestamp is not supported
+    s3.read_to_duckdb(delta_path, table_name, version=version)
     return {"message": "Data retrieved successfully"}

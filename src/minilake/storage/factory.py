@@ -5,7 +5,7 @@ from minilake.core.connection import get_connection
 from minilake.core.exceptions import ConfigurationError
 from minilake.storage.base import StorageInterface
 from minilake.storage.local import LocalDeltaStorage
-from minilake.storage.s3 import S3DeltaStorage
+from minilake.storage.s3 import S3Manager
 
 
 def create_storage(config: Config | None = None) -> StorageInterface:
@@ -33,7 +33,7 @@ def create_storage(config: Config | None = None) -> StorageInterface:
                 "S3 storage type selected but configuration is incomplete"
             )
 
-        return S3DeltaStorage(
+        return S3Manager(
             conn=conn,
             endpoint=config.s3.endpoint,
             access_key=config.s3.access_key,
