@@ -21,7 +21,7 @@ The project currently provides basic building blocks for:
 
 1. Clone the repository:
 ```bash
-git clone https://github.com/yourusername/minilake.git
+git clone https://github.com/anquev/minilake.git
 cd minilake
 ```
 
