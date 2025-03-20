@@ -30,6 +30,14 @@ test = [
 dev = [
     "ruff>=0.3.0"
 ]
+ui = [
+    "dash>=2.17.0",
+    "plotly>=5.21.0",
+    "dash-bootstrap-components>=1.5.0",
+]
+
+[project.scripts]
+minilake-explorer = "minilake.ui.run:main"
 
 [tool.ruff]
 # Same as Black.

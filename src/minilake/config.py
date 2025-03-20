@@ -13,6 +13,10 @@ from dotenv import load_dotenv
 class Config:
     """Configuration for connectors and Delta Lake storage"""
 
+    class DatabaseConfig:
+        def __init__(self, path: str = "default.db"):
+            self.path = path
+
     def __init__(
         self,
         minio_endpoint: str | None = None,
@@ -20,6 +24,7 @@ class Config:
         minio_secret_key: str | None = None,
         minio_bucket: str | None = None,
         delta_root: str | None = None,
+        database: DatabaseConfig | None = None,
     ):
         load_dotenv()
 
@@ -41,6 +46,17 @@ class Config:
                 self.minio_bucket,
             ]
         )
+
+        self.database = database or self.DatabaseConfig()
+
+    @classmethod
+    def from_env(cls):
+        """Create a Config instance from environment variables.
+
+        Returns:
+            Config: A new Config instance initialized from environment variables
+        """
+        return cls()
 
     def get_storage_options(self) -> dict[str, str] | None:
         """Obtenir les options de stockage S3 pour Delta Lake."""
