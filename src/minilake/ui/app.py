@@ -24,14 +24,12 @@ def create_app(config=None):
     Returns:
         The configured Dash application.
     """
-    # Initialize MiniLake components
     if config is None:
-        config = Config.from_env()  # Use the from_env class method we added
+        config = Config.from_env()
 
-    # Initialize query executor - this should now work properly
     executor = QueryExecutor()
 
-    # Initialize Dash app with a modern theme
+    # Dash app
     app = dash.Dash(
         __name__,
         external_stylesheets=[
@@ -42,10 +40,8 @@ def create_app(config=None):
         ],
     )
 
-    # App layout with modern styling
     app.layout = html.Div(
         [
-            # Header
             html.Div(
                 [
                     html.H1("MiniLake Explorer", className="app-header"),
@@ -182,7 +178,6 @@ def create_app(config=None):
                 ],
                 className="main-container",
             ),
-            # Store the query results
             dcc.Store(id="query-results"),
         ],
         className="app-container",
@@ -195,7 +190,7 @@ def create_app(config=None):
     def get_available_tables(search_value):
         try:
             # Try to get tables from storage
-            # storage = create_storage(config)  # Removed unused variable
+            # storage = create_storage(config)
             # Placeholder for actual tables
             tables = ["table1", "table2", "table3"]
             return [{"label": table, "value": table} for table in tables]
@@ -204,14 +199,13 @@ def create_app(config=None):
             print(f"Error getting tables: {e}")
             return [{"label": "sample", "value": "sample"}]
 
-    # When a table is selected, populate the query box with a default query
     @app.callback(Output("query-input", "value"), Input("table-dropdown", "value"))
     def update_query_input(table_name):
         if table_name:
             return f"SELECT * FROM {table_name} LIMIT 100"
         return ""
 
-    # Run the query when button is clicked
+    # Run query
     @app.callback(
         Output("query-results", "data"),
         Output("results-container", "children"),
@@ -224,10 +218,9 @@ def create_app(config=None):
             return None, html.Div("Please enter a query", className="error-message")
 
         try:
-            # Execute the query using the proper method
             df = executor.execute_query(query)
 
-            # Create a data table
+            # Create data table
             table = dash_table.DataTable(
                 id="results-table",
                 columns=[{"name": i, "id": i} for i in df.columns],
@@ -251,7 +244,6 @@ def create_app(config=None):
         except Exception as e:
             return None, html.Div(f"Error: {e!s}", className="error-message")
 
-    # Update chart axis options based on query results
     @app.callback(
         [
             Output("x-axis", "options"),
@@ -268,14 +260,12 @@ def create_app(config=None):
         df = pd.read_json(json_data, orient="split")
         options = [{"label": col, "value": col} for col in df.columns]
 
-        # Try to pick numeric columns for y-axis
         numeric_cols = df.select_dtypes(include=["number"]).columns
         x_default = df.columns[0] if len(df.columns) > 0 else None
         y_default = numeric_cols[0] if len(numeric_cols) > 0 else None
 
         return options, options, x_default, y_default
 
-    # Update chart based on selections
     @app.callback(
         Output("chart-container", "children"),
         [
@@ -307,7 +297,6 @@ def create_app(config=None):
         except Exception as e:
             return html.Div(f"Error creating chart: {e!s}", className="error-message")
 
-    # Add custom CSS
     app.index_string = """
     <!DOCTYPE html>
     <html>
