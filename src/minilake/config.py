@@ -17,6 +17,32 @@ class Config:
         def __init__(self, path: str = "default.db"):
             self.path = path
 
+    class StorageConfig:
+        def __init__(
+            self, delta_root: str = "delta-tables", storage_type: str = "local"
+        ):
+            self.delta_root = delta_root
+            self.type = storage_type
+
+    class S3Config:
+        def __init__(
+            self,
+            endpoint: str | None = None,
+            access_key: str | None = None,
+            secret_key: str | None = None,
+            bucket: str | None = None,
+            region: str = "eu-east-1",
+        ):
+            self.endpoint = endpoint
+            self.access_key = access_key
+            self.secret_key = secret_key
+            self.bucket = bucket
+            self.region = region
+
+            self.is_configured = all(
+                [self.endpoint, self.access_key, self.secret_key, self.bucket]
+            )
+
     def __init__(
         self,
         minio_endpoint: str | None = None,
@@ -48,6 +74,20 @@ class Config:
         )
 
         self.database = database or self.DatabaseConfig()
+
+        # Initialize S3Config
+        self.s3 = self.S3Config(
+            endpoint=self.minio_endpoint,
+            access_key=self.minio_access_key,
+            secret_key=self.minio_secret_key,
+            bucket=self.minio_bucket,
+        )
+
+        # Initialize StorageConfig
+        storage_type = "s3" if self.use_minio else "local"
+        self.storage = self.StorageConfig(
+            delta_root=self.delta_root, storage_type=storage_type
+        )
 
     @classmethod
     def from_env(cls):
