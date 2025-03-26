@@ -30,6 +30,13 @@ test = [
 dev = [
     "ruff>=0.3.0"
 ]
+ui = [
+    "plotly>=6.0.1",
+    "streamlit>=1.43.2",
+]
+
+[project.scripts]
+minilake-explorer = "streamlit.web.cli:main_run"
 
 [tool.ruff]
 line-length = 88
