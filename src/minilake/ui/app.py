@@ -1,7 +1,7 @@
 """
-MiniLake UI - Interactive Data Explorer
+Minilake UI for data exploration
 
-A Streamlit application for exploring and visualizing data in MiniLake.
+Based on Streamlit
 """
 
 import plotly.express as px
@@ -40,21 +40,19 @@ executor = QueryExecutor()
 if "query_result" not in st.session_state:
     st.session_state.query_result = None
 
-# Initialize Streamlit app
-st.title("MiniLake Explorer")
-st.subheader("Explore and analyze your data with ease")
+# Init app
+st.title("Minilake Explorer")
 
 # Data Source Selection
 table_names = get_available_tables(executor)
 table_name = st.selectbox("Select a table", table_names)
 
-# SQL Query Input
+# SQL Query
 default_query = ""
 if table_name != "No tables found":
     default_query = f"SELECT * FROM {table_name} LIMIT 100"
 query = st.text_area("Enter your SQL query here...", value=default_query, height=150)
 
-# Run Query Button
 if st.button("Run Query"):
     if query:
         try:
@@ -68,16 +66,15 @@ if st.button("Run Query"):
     else:
         st.error("Please enter a query")
 
-# Visualization (only if we have query results)
+# Viz
 if st.session_state.query_result is not None:
     df = st.session_state.query_result
     st.subheader("Data Visualization")
 
-    # Get column names from the dataframe for axes selection
+    # Get column names
     numeric_cols = df.select_dtypes(include=["number"]).columns.tolist()
     all_cols = df.columns.tolist()
 
-    # Visualization controls
     chart_types = ["Bar Chart", "Line Chart", "Scatter Plot", "Box Plot"]
     chart_type = st.selectbox("Chart Type", chart_types)
     col1, col2 = st.columns(2)
@@ -88,8 +85,7 @@ if st.session_state.query_result is not None:
     with col2:
         y_axis = st.selectbox("Y-Axis", numeric_cols, index=0 if numeric_cols else None)
 
-    # Generate chart
-    if st.button("Generate Chart"):
+    if st.button("Chart"):
         if x_axis and y_axis:
             try:
                 if chart_type == "Bar Chart":
@@ -112,7 +108,6 @@ if st.session_state.query_result is not None:
         else:
             st.warning("Please select both X and Y axes")
 
-# Apply custom styling (simplified)
 st.markdown(
     """
 <style>
