@@ -8,7 +8,39 @@ import plotly.express as px
 import streamlit as st
 
 from minilake import Config
+from minilake.core.exceptions import ConfigurationError, StorageError
 from minilake.query.execute import QueryExecutor
+from minilake.storage.s3 import S3Manager
+
+
+def verify_s3_connection(config):
+    """Verify that S3/MinIO connection is working."""
+    try:
+        if not config.use_minio:
+            return {
+                "status": "disabled",
+                "message": "S3/MinIO storage is not configured.",
+            }
+
+        s3_storage = S3Manager(
+            conn=None,
+            endpoint=config.minio_endpoint,
+            access_key=config.minio_access_key,
+            secret_key=config.minio_secret_key,
+            bucket=config.minio_bucket,
+        )
+
+        # Test listing objects in bucket to verify connection
+        s3_storage.s3_client.head_bucket(Bucket=config.minio_bucket)
+
+        return {
+            "status": "connected",
+            "message": f"Connected to bucket '{config.minio_bucket}' at {
+                config.minio_endpoint
+            }",
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"S3/MinIO connection error: {e!s}"}
 
 
 def get_available_tables(executor):
@@ -33,8 +65,26 @@ def get_available_tables(executor):
 # Setup application
 config = Config.from_env()
 
+# Verify S3 connection status
+connection_status = verify_s3_connection(config)
+
+# Display connection status in the sidebar
+st.sidebar.header("Storage Connection")
+if connection_status["status"] == "connected":
+    st.sidebar.success(connection_status["message"])
+elif connection_status["status"] == "error":
+    st.sidebar.error(connection_status["message"])
+    st.sidebar.info("Some features may be limited without storage connection.")
+else:
+    st.sidebar.info(connection_status["message"])
+
 # Create storage manually by checking minio configuration
-executor = QueryExecutor()
+try:
+    executor = QueryExecutor()
+except (ConfigurationError, StorageError) as e:
+    st.error(f"Failed to initialize storage: {e}")
+    st.info("Please check your S3/MinIO configuration in the .env file.")
+    st.stop()
 
 # Setup session state to store dataframe between interactions
 if "query_result" not in st.session_state:
