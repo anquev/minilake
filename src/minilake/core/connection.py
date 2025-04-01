@@ -3,8 +3,11 @@
 import threading
 
 import duckdb
+from botocore.exceptions import ClientError
 
 from minilake.core.exceptions import ConnectionError
+
+from .exceptions import MinilakeConnectionError
 
 
 class DBConnection:
@@ -48,7 +51,7 @@ class DBConnection:
             self._init_extensions()
             DBConnection._instance = self
         except Exception as e:
-            raise ConnectionError(f"Failed to connect to database: {e!s}") from e
+            raise ConnectionError(f"Failed to connect to database: {e}") from e
 
     def _init_extensions(self) -> None:
         """
@@ -69,3 +72,33 @@ def get_connection(
 ) -> duckdb.DuckDBPyConnection:
     """Get a DuckDB connection."""
     return DBConnection.get_connection(database, read_only)
+
+
+class MinilakeConnection:
+    def list_s3_folders(self) -> list[str]:
+        """Lists all S3 folders (prefixes) in the configured bucket.
+
+        Returns:
+            List[str]: List of folder names without the trailing slash
+        """
+        try:
+            # Get all objects with delimiter to simulate folder structure
+            result = self.s3_client.list_objects_v2(
+                Bucket=self.bucket,
+                Delimiter="/",
+            )
+
+            # Extract common prefixes (folders)
+            folders = []
+            if "CommonPrefixes" in result:
+                folders = [
+                    prefix["Prefix"].rstrip("/")  # Remove trailing slash
+                    for prefix in result["CommonPrefixes"]
+                ]
+
+            return sorted(folders)  # Return sorted list for better UI experience
+
+        except ClientError as err:
+            raise MinilakeConnectionError(
+                f"Failed to list S3 folders: {err!s}"
+            ) from err

@@ -50,7 +50,6 @@ def retrieve_data(
             detail="S3 storage is not configured",
         )
 
-    # Convert timestamp string to datetime
     if isinstance(timestamp, str):
         try:
             timestamp = datetime.datetime.fromisoformat(timestamp)
@@ -61,6 +60,5 @@ def retrieve_data(
                 "(e.g., '2024-01-01T00:00:00')",
             ) from err
 
-    # Only pass version to read_to_duckdb since timestamp is not supported
     s3.read_to_duckdb(delta_path, table_name, version=version)
     return {"message": "Data retrieved successfully"}
