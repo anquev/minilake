@@ -35,3 +35,9 @@ class QueryError(MiniLakeError):
     """Error during query execution."""
 
     pass
+
+
+class MinilakeConnectionError(MiniLakeError):
+    """Exception raised for errors during S3 or database connection operations."""
+
+    pass

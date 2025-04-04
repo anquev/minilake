@@ -2,9 +2,11 @@
 
 import threading
 
+import boto3
 import duckdb
 from botocore.exceptions import ClientError
 
+from minilake.config import Config
 from minilake.core.exceptions import ConnectionError
 
 from .exceptions import MinilakeConnectionError
@@ -75,6 +77,17 @@ def get_connection(
 
 
 class MinilakeConnection:
+    def __init__(self):
+        """Initialize connection with AWS services."""
+        try:
+            self.s3_client = boto3.client("s3")
+            self.config = Config()
+            self.bucket = self.config.minio_bucket
+        except Exception as err:
+            raise MinilakeConnectionError(
+                "Failed to initialize AWS connections"
+            ) from err
+
     def list_s3_folders(self) -> list[str]:
         """Lists all S3 folders (prefixes) in the configured bucket.
 
