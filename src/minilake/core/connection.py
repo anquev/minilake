@@ -1,9 +1,12 @@
 """Database connection management module."""
 
+import os
 import threading
 
+import boto3
 import duckdb
 from botocore.exceptions import ClientError
+from dotenv import load_dotenv
 
 from minilake.core.exceptions import ConnectionError
 
@@ -75,6 +78,67 @@ def get_connection(
 
 
 class MinilakeConnection:
+    def __init__(self):
+        """Initialize connection with MinIO service."""
+        try:
+            load_dotenv()
+
+            # login vars
+            required_vars = [
+                "MINIO_ROOT_USER",
+                "MINIO_ROOT_PASSWORD",
+                "MINIO_DEFAULT_BUCKETS",
+            ]
+
+            missing_vars = [var for var in required_vars if not os.getenv(var)]
+
+            if missing_vars:
+                raise MinilakeConnectionError(
+                    "Missing required environment variables: "
+                    f"{', '.join(missing_vars)}. "
+                    "Please check your .env file."
+                )
+
+            self.s3_client = boto3.client(
+                "s3",
+                endpoint_url="http://localhost:9000",
+                aws_access_key_id=os.getenv("MINIO_ROOT_USER"),
+                aws_secret_access_key=os.getenv("MINIO_ROOT_PASSWORD"),
+                aws_session_token=None,
+                config=boto3.session.Config(signature_version="s3v4"),
+                verify=False,
+            )
+
+            self.bucket = os.getenv("MINIO_DEFAULT_BUCKETS").split(",")[0]
+
+            # Test connection
+            self.s3_client.list_objects_v2(
+                Bucket=self.bucket,
+                MaxKeys=1,
+            )
+
+        except ClientError as err:
+            if err.response["Error"]["Code"] == "InvalidAccessKeyId":
+                raise MinilakeConnectionError(
+                    "Invalid MinIO credentials. Please check your MINIO_ROOT_USER."
+                ) from err
+            elif err.response["Error"]["Code"] == "SignatureDoesNotMatch":
+                raise MinilakeConnectionError(
+                    "Invalid MinIO credentials. Please check your MINIO_ROOT_PASSWORD."
+                ) from err
+            elif err.response["Error"]["Code"] == "NoSuchBucket":
+                raise MinilakeConnectionError(
+                    f"MinIO bucket '{self.bucket}' does not exist or is not accessible."
+                ) from err
+            else:
+                raise MinilakeConnectionError(
+                    f"MinIO connection error: {err!s}"
+                ) from err
+        except Exception as err:
+            raise MinilakeConnectionError(
+                f"Failed to initialize MinIO connections: {err!s}"
+            ) from err
+
     def list_s3_folders(self) -> list[str]:
         """Lists all S3 folders (prefixes) in the configured bucket.
 
@@ -82,7 +146,6 @@ class MinilakeConnection:
             List[str]: List of folder names without the trailing slash
         """
         try:
-            # Get all objects with delimiter to simulate folder structure
             result = self.s3_client.list_objects_v2(
                 Bucket=self.bucket,
                 Delimiter="/",
@@ -92,11 +155,10 @@ class MinilakeConnection:
             folders = []
             if "CommonPrefixes" in result:
                 folders = [
-                    prefix["Prefix"].rstrip("/")  # Remove trailing slash
-                    for prefix in result["CommonPrefixes"]
+                    prefix["Prefix"].rstrip("/") for prefix in result["CommonPrefixes"]
                 ]
 
-            return sorted(folders)  # Return sorted list for better UI experience
+            return sorted(folders)
 
         except ClientError as err:
             raise MinilakeConnectionError(
