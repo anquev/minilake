@@ -4,6 +4,9 @@ Minilake UI for data exploration
 Based on Streamlit
 """
 
+import subprocess
+import time
+
 import streamlit as st
 
 from minilake.core import MinilakeCore
@@ -60,11 +63,28 @@ def get_available_tables(executor):
         return ["No tables found"]
 
 
+def start_docker_services():
+    """Start Docker Compose services."""
+    try:
+        subprocess.run(
+            ["docker-compose", "up", "-d"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        time.sleep(5)
+        return True
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return False
+
+
 def main():
     st.set_page_config(
         page_title="Minilake 🌊",
         layout="wide",
     )
+
+    start_docker_services()
 
     try:
         core = MinilakeCore()
@@ -86,9 +106,8 @@ def main():
                 tables = core.list_tables(selected_folder)
                 selected_table = st.selectbox("Select a table", tables)
 
-        # Main content area
         if selected_folder and selected_table:
-            st.title(f"Table: {selected_table} 📋")
+            st.title(f"Table: {selected_table}")
 
             # Display sample data
             st.subheader("Preview (Top 10 rows)")
